@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import {PrismaClient} from '../../../lib/prisma';
 import crypto from 'crypto'; // Librería nativa para generar UUIDs aleatorios
 
 import { prisma } from "../../../lib/prisma";
