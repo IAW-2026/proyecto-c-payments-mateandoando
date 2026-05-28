@@ -33,7 +33,7 @@ export async function PATCH(
                 headers: {
                     "Content-Type": "application/json",
                     //En esta linea se define una SECRET_KEY que se usa para identificar que fue la Seller App quien hizo la petición, para evitar que terceros puedan hacer peticiones a este endpoint. En un caso real, esta clave debería ser más segura y no estar hardcodeada.
-                    'sk_srvc_pagos_secreto_123': process.env.SECRET_KEY_SELLER_APP || 'sk_srvc_pagos_secreto_123'
+                    'X_API_key': process.env.SECRET_KEY_SELLER_APP || ''
                 },
                 body: JSON.stringify({
                     status: "PAGADA",
