@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from "../../../../lib/prisma";
 
+//Endpoint para que la Seller App consulte el estado de una transaccion.
 export async function GET(
   request: NextRequest,
   //Este nombre tiene que coincidir con el  parametro dinamico de la URL entre corchetes
@@ -29,7 +30,15 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(ordenDePago, {status: 200});
+    //Devolvemos los campos que se piden en el contrato.
+    return NextResponse.json({
+      id_payment_operation: ordenDePago.idPaymentOperation,
+      id_purchase_order: ordenDePago.idPurchaseOrder,
+      total_price: Number(ordenDePago.totalPrice), // Prisma devuelve Decimal, lo pasamos a número
+      status: ordenDePago.status,
+      created_at: ordenDePago.createdAt
+    }, { status: 200 });
+
 } catch (error) {
     console.error("Error al buscar la transaccion.", error);
     return NextResponse.json(

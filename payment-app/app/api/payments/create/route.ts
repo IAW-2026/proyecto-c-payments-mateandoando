@@ -10,7 +10,7 @@ interface CreatePaymentRequest {
   total_price: number;
 }
 
-//Funcion principal usando el POST
+//Endpoint para que la Seller App cree una nueva transaccion de pago cuando se genere una orden de compra.
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as CreatePaymentRequest; //Forzamos el tipado con la interface
