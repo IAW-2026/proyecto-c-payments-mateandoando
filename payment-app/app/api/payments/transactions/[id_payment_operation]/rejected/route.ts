@@ -24,6 +24,7 @@ export async function PATCH(
 
         //Le avisamos a la Seller App del rechazo del pago, para que pueda actuar en consecuencia.
         const SELLER_APP_URL = process.env.SELLER_APP_URL || 'http://localhost:3001';
+        const BUYER_APP_URL = process.env.BUYER_APP_URL || 'http://localhost:3002';
 
         try{
             await fetch(`${SELLER_APP_URL}/api/purchase-orders/${pagoCancelado.idPurchaseOrder}/payment`, {
@@ -34,13 +35,31 @@ export async function PATCH(
                     'X_API_key': process.env.SECRET_KEY_SELLER_APP || ''
                 },
                 body: JSON.stringify({
-                    status: 'RECHAZADA',
+                    status: 'CANCELADA',
                     id_payment_operation: pagoCancelado.idPaymentOperation,
                     payment_hash: null
                 })
             });
         } catch (error) {
             console.warn("No se pudo avisar a la Seller App");
+        }
+
+        try{
+            await fetch(`${BUYER_APP_URL}/api/buyers/payment-notification`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    status: "SUSPENDIDO",
+                    id_payment_operation: pagoCancelado.idPaymentOperation,
+                    // Si el hash todavía es null, mandamos un texto temporal por ahora
+                    payment_hash: pagoCancelado.paymentHash || "hash_generado_proximamente"
+                }),
+            });
+            console.log("¡Éxito! Se le avisó a la Buyer App que el pago está aprobado.");
+        } catch (error) {
+            console.warn("La Buyer App no respondio, pero el pago se aprobó localmente.");
         }
 
         //Formateamos la respuesta segun el contrato
