@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from 'crypto'; // Librería nativa para generar UUIDs aleatorios
-
 import { prisma } from "../../../lib/prisma";
+//Importamos la libreria de Mercado Pago
+import {MercadoPagoConfig, Preference} from 'mercadopago';
+
+//Le pasamos el token de .env para que sepa que soy yo
+const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN || '' });
 
 //Lo que esperamos recibir de la Seller App
 interface CreatePaymentRequest {
@@ -24,6 +28,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    //Le avisamos a MP antes de hacer nada
+    const preference = new Preference(client);
+    const mpResponse = await preference.create({
+      body: {
+        items: [
+          {
+            id: id_purchase_order,
+            title: 'Orden de compra de la tienda',
+            quantity: 1,
+            unit_price: Number(total_price),
+            currency_id: 'ARS',
+          }
+        ],
+      }
+    });
+
     //Guardamos en la base de datos
     const nuevoPago = await prisma.payment_order.create({
       data: {
@@ -39,7 +59,9 @@ export async function POST(request: NextRequest) {
 
     //Devolvemos el ID de la nueva transaccion recien creada
     return NextResponse.json(
-      {id_payment_operation: nuevoPago.idPaymentOperation},
+      {id_payment_operation: nuevoPago.idPaymentOperation, 
+        //Mas adelante se va a cambiar sandbox_init_point por init_point que es el link real de MP.
+      checkout_url: mpResponse.sandbox_init_point},
       {status:201}
     )
 
