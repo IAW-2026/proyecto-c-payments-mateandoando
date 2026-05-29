@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from "../../../../lib/prisma";
+import { auth } from '@clerk/nextjs/server';
 
 //Endpoint para que la Seller App consulte el estado de una transaccion.
 export async function GET(
@@ -9,6 +10,18 @@ export async function GET(
   { params }: { params: Promise<{ id_payment_operation: string }> }
 ) {
   try {
+
+    //Le preguntamos a Clerk quein es el usuario que esta haciendo la peticion.
+    const {userId} = await auth();
+
+    //Si no hay usuario logueado, le cortamos el paso con error 401.
+    if (!userId) {
+      return NextResponse.json(
+        {error: "No autorizado. Debes iniciar sesión para consultar el estado de la transacción."},
+        {status: 401} //No autorizado
+      ); 
+    }
+
     const resolvedParams = await params; // Resolvemos la promesa para obtener los parámetros
     const paymentId = resolvedParams.id_payment_operation;
 
