@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {id_payment_operation: nuevoPago.idPaymentOperation, 
         //Mas adelante se va a cambiar sandbox_init_point por init_point que es el link real de MP.
-      checkout_url: mpResponse.sandbox_init_point},
+      checkout_url: mpResponse.init_point},
       {status:201}
     )
 
