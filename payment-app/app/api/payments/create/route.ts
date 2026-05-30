@@ -43,9 +43,9 @@ export async function POST(request: NextRequest) {
         ],
 
         back_urls: {
-          success: "http://localhost:3000/success",
-          failure: "http://localhost:3000/failure",
-          pending: "http://localhost:3000/pending"
+          success: "https://proyecto-c-payments-mateandoando.vercel.app/success",
+          failure: "https://proyecto-c-payments-mateandoando.vercel.app/failure",
+          pending: "https://proyecto-c-payments-mateandoando.vercel.app/pending"
         },
         auto_return: "approved"
       }
@@ -72,12 +72,13 @@ export async function POST(request: NextRequest) {
       {status:201}
     )
 
-  }catch(error){
-    //Por si falla algo en la base de datos, lo imprimo en consola.
-    console.error("Error al crear el pago", error);
+  }catch(error: any) {
+    // Le pedimos a la consola que escupa el JSON exacto del rechazo de MP
+    console.error("Error completo de MP:", error.cause || error);
+    
     return NextResponse.json(
       {error: "Error interno del servidor al generar el pago"},
-      {status: 500} //Error de parte del Servidor
+      {status: 500}
     );
   }
 }
