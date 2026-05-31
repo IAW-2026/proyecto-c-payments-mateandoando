@@ -33,6 +33,29 @@ export async function PATCH(
       data: {status: "REEMBOLSADO"} //Se usa el valor del enum, pasamos a REEMBOLSADO automaticamente
     });
 
+    //Le avisamos a la Seller App y a la Buyer App que el pago fue cancelado, para que puedan actuar en consecuencia.
+    const SELLER_APP_URL = process.env.SELLER_APP_URL || 'http://localhost:3001';
+    //const BUYER_APP_URL = process.env.BUYER_APP_URL || 'http://localhost:3002';
+
+    try{
+        //Usamos el ID de la orden de compra que recuperamos de la base de datos
+        await fetch(`${SELLER_APP_URL}/api/purchase-orders/${pagoReembolsado.idPurchaseOrder}/payment`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          'X_API_key': process.env.SECRET_KEY_SELLER_APP || ''
+        },
+        body: JSON.stringify({
+          status: "REEMBOLSADO",
+          id_payment_operation: pagoReembolsado.idPaymentOperation,
+          payment_hash: pagoReembolsado.paymentHash || "reembolso_sin_hash"
+        }),
+      });
+      console.log("¡Éxito! Se le avisó a la Seller App que el pago está reembolsado.");
+    } catch (error) {
+      console.warn("La Seller App no respondio, pero el pago se reembolsó localmente.");
+    }
+
     //Devolvemos la transaccion actualizada
     return NextResponse.json({
       id_payment_operation: pagoReembolsado.idPaymentOperation,

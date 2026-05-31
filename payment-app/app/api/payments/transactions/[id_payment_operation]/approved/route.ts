@@ -52,6 +52,7 @@ export async function PATCH(
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
+                    'X_API_key': process.env.SECRET_KEY_BUYER_APP || ''
                 },
                 body: JSON.stringify({
                     status: "APROBADO",
