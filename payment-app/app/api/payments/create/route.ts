@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
         idSeller: crypto.randomUUID(), //Crypto es usado para generar codigos UUID validos y aleatorios
         idSellerApp: crypto.randomUUID(),
         idBuyerApp: crypto.randomUUID(),
+        url: mpResponse.init_point //Guardamos el link de MP para redirigir al usuario despues (esto es opcional pero recomendado para no tener que armar el link manualmente despues)
       }
     });
 
