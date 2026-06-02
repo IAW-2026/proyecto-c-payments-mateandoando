@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 
 interface Orden {
   total_price: number;
-  checkout_url?: string; // Acá podrías guardar el init_point en tu DB
+  url?: string; // Acá podrías guardar el init_point en tu DB
   // Si no lo guardás en la DB, podés usar el ID de la preferencia para armar el link manual
 }
 
@@ -30,7 +30,7 @@ export default function CheckoutResumenPage() {
 
   // Nota: Asegurate de que tu endpoint GET de transacciones devuelva el checkout_url/init_point
   // Si no lo devuelve, vas a tener que agregarlo a tu modelo de Prisma y guardarlo en el POST /create
-  const linkMercadoPago = orden.checkout_url || "#";
+  const linkMercadoPago = orden.url || "#";
 
   return (
     <div className="min-h-screen bg-stone-100 flex items-center justify-center p-4 font-sans">
