@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from 'crypto'; // Librería nativa para generar UUIDs aleatorios
 import { prisma } from "../../../lib/prisma";
+import { auth } from '@clerk/nextjs/server';
 //Importamos la libreria de Mercado Pago
-import {MercadoPagoConfig, Preference} from 'mercadopago';
-import { auth } from "@clerk/nextjs/server";
+import { MercadoPagoConfig, Preference } from 'mercadopago';
 
 //Le pasamos el token de .env para que sepa que soy yo
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN || '' });
@@ -18,7 +18,7 @@ interface CreatePaymentRequest {
 //Endpoint para que la Seller App cree una nueva transaccion de pago cuando se genere una orden de compra.
 export async function POST(request: NextRequest) {
   try {
-
+    //Validamos que el usuario esté logueado con Clerk
     const { userId } = await auth();
 
     if (!userId) {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
-    
+
     const body = (await request.json()) as CreatePaymentRequest; //Forzamos el tipado con la interface
     const {id_purchase_order, id_buyer, total_price} = body;
     
