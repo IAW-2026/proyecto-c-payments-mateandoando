@@ -3,15 +3,16 @@ import { prisma } from "../../../../../lib/prisma"; // Ajustá los ../ según ne
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id_seller: string }> }
 ) {
   try {
-    const idVendedor = params.id;
+    const {id_seller} = await params;
+
 
     // Buscamos todas las órdenes donde este usuario sea el vendedor
     const ventas = await prisma.payment_order.findMany({
       where: {
-        idSeller: idVendedor,
+        idSeller: id_seller,
       },
       orderBy: {
         createdAt: 'desc' // Las ordenamos de más nueva a más vieja
