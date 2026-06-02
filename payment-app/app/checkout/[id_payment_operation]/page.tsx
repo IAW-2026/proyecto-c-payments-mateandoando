@@ -47,20 +47,20 @@ export default function CheckoutResumenPage() {
         </div>
 
         {/* El Botón Mágico que los saca de tu app y los lleva a MP */}
-        <Link 
+        <a
           href={linkMercadoPago}
           className="block w-full py-4 px-4 bg-blue-500 hover:bg-blue-600 text-white font-extrabold text-lg rounded-xl transition-colors shadow-md"
         >
           Pagar con Mercado Pago
-        </Link>
+        </a>
 
         {/* NUEVO: Botón secundario para ir al historial */}
-        <Link 
+        <a
           href="/history-buyer"
           className="block w-full mt-5 text-sm text-stone-500 hover:text-stone-800 font-semibold transition-colors underline decoration-stone-300 underline-offset-4"
         >
           Ver mi historial de compras
-        </Link>
+        </a>
 
       </div>
     </div>
