@@ -1,6 +1,41 @@
-import Link from 'next/link';
+'use client';
+import { useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 
-export default function FailurePage() {
+function FailureContent() {
+  // 1. Usamos la variable para volver a la app de compras
+  const BUYER_APP_URL = process.env.NEXT_PUBLIC_BUYER_URL || "https://proyecto-c-buyer2-mateandoando.vercel.app";
+  
+  // 2. Leemos el ID que nos manda Mercado Pago por la URL
+  const searchParams = useSearchParams();
+  const idOperacion = searchParams.get('id_operacion');
+
+  useEffect(() => {
+    // 3. Avisamos silenciosamente a tu backend que el pago rebotó
+    const avisarRechazo = async () => {
+      if (idOperacion) {
+        try {
+          // Acá llamamos exactamente al endpoint "rejected" que armaste
+          await fetch(`/api/payments/transactions/${idOperacion}/rejected`, { 
+            method: 'PATCH' 
+          });
+          console.log("¡Éxito! La base de datos y el resto del sistema se actualizaron a CANCELADO.");
+        } catch (error) {
+          console.error("Falló la llamada al backend:", error);
+        }
+      }
+    };
+
+    avisarRechazo();
+
+    // 4. (Opcional) A los 5 segundos lo mandamos de vuelta automáticamente a la tienda
+    const timer = setTimeout(() => {
+      window.location.href = BUYER_APP_URL;
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [idOperacion, BUYER_APP_URL]);
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-stone-100 p-4 font-sans dark:bg-stone-900 transition-colors">
       <main className="w-full max-w-md flex flex-col items-center gap-6 rounded-2xl bg-white p-10 text-center shadow-xl dark:bg-stone-800 border-t-4 border-red-500">
@@ -26,14 +61,23 @@ export default function FailurePage() {
           </p>
         </div>
 
-        {/* Botón para darle una segunda oportunidad de compra */}
-        <Link 
-          href="/"
-          className="mt-2 w-full rounded-xl bg-red-600 py-4 font-bold text-white shadow-md transition-all hover:bg-red-700 active:scale-95"
+        {/* Botón modificado para usar la variable y etiqueta <a> en lugar de Link */}
+        <a 
+          href={BUYER_APP_URL}
+          className="mt-2 w-full flex items-center justify-center rounded-xl bg-red-600 py-4 font-bold text-white shadow-md transition-all hover:bg-red-700 active:scale-95"
         >
-          Intentar pagar de nuevo
-        </Link>
+          Intentar pagar de nuevo en la tienda
+        </a>
       </main>
     </div>
+  );
+}
+
+// Envolvemos en Suspense por Next.js
+export default function FailurePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Cargando...</div>}>
+      <FailureContent />
+    </Suspense>
   );
 }

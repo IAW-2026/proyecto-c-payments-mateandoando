@@ -1,52 +1,34 @@
-'use client';
+import React from 'react';
+import { prisma } from '../../lib/prisma'; 
+import BotonPago from './BotonPago';
 
-import React, { Suspense, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+// 1. Tipamos params como una Promesa
+export default async function CheckoutResumenPage({ 
+  params 
+}: { 
+  params: Promise<{ id_payment_operation: string }> 
+}) {
+  
+  // 2. Esperamos a que Next.js resuelva la URL
+  const parametrosResueltos = await params;
+  const idOperacion = parametrosResueltos.id_payment_operation;
 
-function ContenidoCheckoutResumen() {
-  const searchParams = useSearchParams();
-  const [cargando, setCargando] = useState(false);
+  // 3. Ahora sí le pasamos el string real a Prisma
+  const orden = await prisma.payment_order.findUnique({
+    where: { 
+      idPaymentOperation: idOperacion 
+    }
+  });
 
-  // Obtenemos los datos de la URL
-  const ordenId = searchParams?.get('orden') || 'orden-default';
-  const precioUrl = searchParams?.get('precio') || '0';
-  const compradorId = searchParams?.get('comprador') || 'comprador-default';
-  const totalFinal = Number(precioUrl) || 0;
+  if (!orden) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-stone-100">
+        <h2 className="text-2xl font-bold text-stone-800">Orden no encontrada</h2>
+      </div>
+    );
+  }
 
-  const handlePagar = async () => {
-    setCargando(true);
-    try {
-      const respuesta = await fetch('/api/payments/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id_purchase_order: ordenId,      // ✅ Datos reales
-          id_buyer: compradorId,            // ✅ Datos reales
-          total_price: totalFinal            // ✅ Precio real
-        })
-      });
-
-      if (!respuesta.ok) {
-        const errorData = await respuesta.json();
-        throw new Error(errorData.error || 'Error en el servidor');
-      }
-
-      const datos = await respuesta.json();
-      console.log("Respuesta del servidor:", datos); // ← Para debuggear
-
-      if (datos.checkout_url) {
-        window.location.href = datos.checkout_url;
-      } else {
-        alert("No se pudo obtener el link de pago");
-      }
-    }catch (error: any) {
-  console.error("Error:", error);
-  const mensajeError = error instanceof Error ? error.message : 'Error desconocido';
-  alert(`Error al conectar: ${mensajeError}`);
-} finally {
-  setCargando(false);
-}
-  };
+  const totalFinal = Number(orden.totalPrice);
 
   return (
     <div className="min-h-screen bg-stone-100 flex items-center justify-center p-4 font-sans">
@@ -62,13 +44,13 @@ function ContenidoCheckoutResumen() {
           </p>
         </div>
 
-        <button
-          onClick={handlePagar}
-          disabled={cargando}
-          className="w-full py-4 rounded-xl font-bold text-white text-lg bg-green-600 hover:bg-green-700 disabled:bg-gray-400 active:scale-[0.98] transition-all shadow-md"
-        >
-          {cargando ? "Procesando..." : "Pagar con Mercado Pago"}
-        </button>
+        {/* 3. Le pasamos los datos blindados al botón interactivo */}
+        <BotonPago 
+          ordenId={orden.idPurchaseOrder} 
+          compradorId={orden.idBuyer} 
+          totalFinal={totalFinal}
+          checkoutUrl={orden.url}
+        />
 
         <a
           href="/history-buyer"
@@ -79,13 +61,5 @@ function ContenidoCheckoutResumen() {
 
       </div>
     </div>
-  );
-}
-
-export default function CheckoutResumenPage() {
-  return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Cargando...</div>}>
-      <ContenidoCheckoutResumen />
-    </Suspense>
   );
 }

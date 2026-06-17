@@ -25,6 +25,7 @@ export default async function DashboardRedirect() {
   // RUTA 2: ES UN COMPRADOR
   // ==========================================
   if (email.includes("comprador")) {
+    console.log("EL ID REAL DE ESTE COMPRADOR ES:", user.id);
     // Nos fijamos si de casualidad tiene un carrito pendiente
     const ordenPendiente = await prisma.payment_order.findFirst({
       where: {
@@ -44,7 +45,6 @@ export default async function DashboardRedirect() {
           <div className="p-8 bg-white rounded-2xl shadow text-center">
             <h2 className="text-2xl font-bold text-stone-800">¡Hola Comprador!</h2>
             <p className="text-stone-500 mt-2">No tenés compras pendientes.</p>
-            <p className="text-stone-400 text-sm mt-4">Próximamente acá verás el catálogo de mates.</p>
           </div>
         </div>
       );

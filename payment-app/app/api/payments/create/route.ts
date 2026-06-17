@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const id_operacion_pago = crypto.randomUUID();
     const preference = new Preference(client);
     const mpResponse = await preference.create({
       body: {
@@ -35,10 +36,11 @@ export async function POST(request: NextRequest) {
             currency_id: 'ARS',
           }
         ],
+        external_reference: id_operacion_pago,
         back_urls: {
-          success: "https://proyecto-c-payments-mateandoando.vercel.app/success",
-          failure: "https://proyecto-c-payments-mateandoando.vercel.app/failure",
-          pending: "https://proyecto-c-payments-mateandoando.vercel.app/pending"
+          success: `https://proyecto-c-payments-mateandoando.vercel.app/success?id_operacion=${id_operacion_pago}`,
+          failure: `https://proyecto-c-payments-mateandoando.vercel.app/failure?id_operacion=${id_operacion_pago}`,
+          pending: `https://proyecto-c-payments-mateandoando.vercel.app/pending?id_operacion=${id_operacion_pago}`
         },
         auto_return: "approved"
       }
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
         idSeller: crypto.randomUUID(),
         idSellerApp: crypto.randomUUID(),
         idBuyerApp: crypto.randomUUID(),
-        url: mpResponse.init_point // ← AGREGÁ ESTO AL ANTERIOR
+        url: mpResponse.init_point,
       }
     });
 
