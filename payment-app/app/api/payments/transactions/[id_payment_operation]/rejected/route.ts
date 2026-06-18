@@ -17,52 +17,56 @@ export async function PATCH(
             ); 
         }
 
+        // Actualizamos localmente a CANCELADO en nuestra base de datos
         const pagoCancelado = await prisma.payment_order.update({
             where: { idPaymentOperation: paymentId },
             data: { status: 'CANCELADO' },
         });
 
-        // Le avisamos a la Seller App del rechazo del pago, para que pueda actuar en consecuencia.
-        const SELLER_APP_URL = process.env.SELLER_APP_URL || 'http://localhost:3001';
-        const BUYER_APP_URL = process.env.BUYER_APP_URL || 'http://localhost:3002';
+        // Usamos las variables unificadas
+        const SELLER_APP_URL = process.env.NEXT_PUBLIC_SELLER_URL || 'http://localhost:3001';
+        const BUYER_APP_URL = process.env.NEXT_PUBLIC_BUYER_URL || 'http://localhost:3002';
 
+        // 1. Avisamos a la Seller App del rechazo del pago (Escenario B del contrato)
         try {
             await fetch(`${SELLER_APP_URL}/api/purchase-orders/${pagoCancelado.idPurchaseOrder}/payment`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X_API_key': process.env.SECRET_KEY_SELLER_APP || ''
+                    'X-API-KEY': process.env.SELLER_APP_API_KEY || '' // ✅ Header unificado
                 },
                 body: JSON.stringify({
-                    status: 'CANCELADA',
-                    id_payment_operation: pagoCancelado.idPaymentOperation,
-                    payment_hash: null
+                    status: 'RECHAZADO', // ✅ Contrato pide exactamente "RECHAZADO"
+                    id_payment_operation: null, // ✅ Contrato pide null en caso de rechazo
+                    payment_hash: null // ✅ Contrato pide null
                 })
             });
-            console.log("Se le avisó a la Seller App que el pago fue CANCELADO.");
+            console.log("Se le avisó a la Seller App que el pago fue RECHAZADO.");
         } catch (error) {
             console.warn("No se pudo avisar a la Seller App");
         }
 
+        // 2. Avisamos a la Buyer App
         try {
             await fetch(`${BUYER_APP_URL}/api/buyers/payment-notification`, {
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
-                    'X_API_key': process.env.SECRET_KEY_BUYER_APP || ''
+                    'X-API-KEY': process.env.BUYER_APP_API_KEY || '' // ✅ Header unificado
                 },
                 body: JSON.stringify({
-                    status: "SUSPENDIDO", // O "CANCELADO" según lo que espere tu compañera
+                    id_purchase_order: pagoCancelado.idPurchaseOrder, // ✅ Agregado el ID de la orden
                     id_payment_operation: pagoCancelado.idPaymentOperation,
-                    payment_hash: pagoCancelado.paymentHash || "hash_generado_proximamente"
+                    status: "RECHAZADO", // ✅ Unificado con el contrato
+                    payment_hash: null // ✅ Al ser rechazado, no hay hash
                 }),
             });
-            console.log("Se le avisó a la Buyer App que el pago fue CANCELADO/SUSPENDIDO.");
+            console.log("Se le avisó a la Buyer App que el pago fue RECHAZADO.");
         } catch (error) {
             console.warn("La Buyer App no respondió, pero el pago se canceló localmente.");
         }
 
-        // Formateamos la respuesta según el contrato
+        // Formateamos la respuesta según el contrato para el Webhook
         return NextResponse.json({
             id_payment_operation: pagoCancelado.idPaymentOperation,
             status: pagoCancelado.status,
