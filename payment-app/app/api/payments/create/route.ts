@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
 
     const nuevoPago = await prisma.payment_order.create({
       data: {
+        idPaymentOperation: id_operacion_pago,
         idPurchaseOrder: id_purchase_order,
         idBuyer: id_buyer,
         totalPrice: total_price,
