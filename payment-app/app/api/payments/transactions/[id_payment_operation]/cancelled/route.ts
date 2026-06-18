@@ -21,9 +21,11 @@ export async function PATCH(
     //Leemos el Body que nos manda la Buyer App
     const body = await request.json();
 
+    // ✅ ACÁ ESTÁ EL CAMBIO APLICADO
     if (body.status !== "CANCELADO") {
       return NextResponse.json(
-        {error: "El estado enviado no es valido para esta operacion."}
+        {error: "El estado enviado no es valido para esta operacion."},
+        {status: 400} // <-- ¡Agregado para devolver el código de error correcto!
       )
     }
 
@@ -40,35 +42,39 @@ export async function PATCH(
     }
 
     //Le preguntamos a la Seller App si podems reembolsar.
-    const SELLER_APP_URL = process.env.SELLER_APP_URL || 'http://localhost:3001';
+    const SELLER_APP_URL = process.env.NEXT_PUBLIC_SELLER_URL || 'http://localhost:3001';
 
-    try{
-      const sellerResponse = await fetch(`${SELLER_APP_URL}/api/seller/orders/${ordenActual.idPurchaseOrder}/refund`, {
-        method: 'POST',
+    try {
+      // ✅ URL y Método corregidos según el contrato oficial
+      const sellerResponse = await fetch(`${SELLER_APP_URL}/api/purchase-orders/${ordenActual.idPurchaseOrder}/refund`, {
+        method: 'PATCH', 
         headers: {
           "Content-Type": "application/json",
           'X-API-KEY': process.env.SELLER_APP_API_KEY || ''
         },
-        //Sin body porque la Seller App solo necesita el id de la orden para hacer el reembolso
       });
 
       const sellerData = await sellerResponse.json();
 
-      //Escenario B: Si la Seller App responde con un error significa que no se puede reembolsar.
+      // Escenario B: Si la Seller App responde con un error significa que no se puede reembolsar.
       if (!sellerResponse.ok || sellerData.error) {
         return NextResponse.json(
-          {error: sellerData.error || "Error al procesar el reembolso en la Seller App."},
-          {status: 502} //Bad Gateway, porque el error viene de la Seller App
+          {
+            error: sellerData.error || "Error al procesar el reembolso en la Seller App.",
+            codigo: sellerData.codigo || "ERROR_DESCONOCIDO" // ✅ Opcional: sumamos el código del contrato
+          },
+          {status: 400} // Cambiado a 400 porque es un rechazo de regla de negocio, no un error de gateway
         );
       }
 
-      //Escenario A: Si se llega aca significa que no hay problemas para reembolsar.
-      console.log("Exito al realizar el reembolso.");
+      // Escenario A: Si se llega acá significa que no hay problemas para reembolsar.
+      console.log("Éxito al validar el reembolso con la Seller App:", sellerData.message);
+      
     } catch (error) {
       console.error("Error de comunicación con la Seller App.", error);
       return NextResponse.json(
         {error: "Error interno: No se pudo validar el estado del paquete con el vendedor."},
-        {status: 500} //Error de parte del Servidorr
+        {status: 500} 
       );
     }
 

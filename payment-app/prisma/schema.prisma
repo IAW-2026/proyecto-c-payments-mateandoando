@@ -14,10 +14,7 @@ datasource db {
 model payment_order{
   idPaymentOperation String @id @default(uuid()) @db.Uuid @map("id_payment_operation")
   idPurchaseOrder String @db.Uuid @map("id_purchase_order")
-  idSeller String
-  idSellerApp String @db.Uuid @map("id_seller_app")
   idBuyer String
-  idBuyerApp String @db.Uuid @map("id_buyer_app")
   totalPrice Decimal @db.Decimal(10,2) @map("total_price")
   status PaymentStatus
   url String? @db.Text
