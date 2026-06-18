@@ -1,6 +1,39 @@
-import Link from 'next/link';
+'use client';
+import { useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 
-export default function PendingPage() {
+function PendingContent() {
+  // 1. Definimos la URL a la que vamos a redirigir
+  const BUYER_APP_URL = process.env.NEXT_PUBLIC_BUYER_URL || "https://proyecto-c-buyer2-mateandoando.vercel.app";
+  
+  // 2. Atrapamos el ID de la operación
+  const searchParams = useSearchParams();
+  const idOperacion = searchParams.get('id_operacion');
+
+  useEffect(() => {
+    // 3. Avisamos silenciosamente al backend (si tenés armado el endpoint de pending)
+    const avisarBackend = async () => {
+      if (idOperacion) {
+        try {
+          // Si armás un endpoint específico para esto, descomentá y ajustá esta línea:
+          // await fetch(`/api/payments/transactions/${idOperacion}/pending`, { method: 'PATCH' });
+          console.log("El pago quedó en estado PENDIENTE de impacto.");
+        } catch (error) {
+          console.error("Falló la llamada al backend:", error);
+        }
+      }
+    };
+
+    avisarBackend();
+
+    // 4. Temporizador automático: a los 5 segundos los mandamos a la Buyer App
+    const timer = setTimeout(() => {
+      window.location.href = BUYER_APP_URL;
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [idOperacion, BUYER_APP_URL]);
+
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-stone-100 p-4 font-sans dark:bg-stone-900 transition-colors">
       <main className="w-full max-w-md flex flex-col items-center gap-6 rounded-2xl bg-white p-10 text-center shadow-xl dark:bg-stone-800 border-t-4 border-amber-500">
@@ -26,13 +59,23 @@ export default function PendingPage() {
           </p>
         </div>
 
-        <Link 
-          href="/"
-          className="mt-2 w-full rounded-xl bg-amber-500 py-4 font-bold text-white shadow-md transition-all hover:bg-amber-600 active:scale-95"
+        {/* Reemplazamos Link por una etiqueta <a> normal para dominios externos */}
+        <a 
+          href={BUYER_APP_URL}
+          className="mt-2 flex w-full items-center justify-center rounded-xl bg-amber-500 py-4 font-bold text-white shadow-md transition-all hover:bg-amber-600 active:scale-95"
         >
           Volver a la tienda
-        </Link>
+        </a>
       </main>
     </div>
+  );
+}
+
+// Envolvemos todo en Suspense porque usamos parámetros de búsqueda dinámicos
+export default function PendingPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Procesando espera...</div>}>
+      <PendingContent />
+    </Suspense>
   );
 }
