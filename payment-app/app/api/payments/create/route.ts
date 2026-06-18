@@ -1,34 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import crypto from 'crypto'; // Librería nativa para generar UUIDs aleatorios
+import crypto from 'crypto';
 import { prisma } from "../../../lib/prisma";
-//Importamos la libreria de Mercado Pago
 import {MercadoPagoConfig, Preference} from 'mercadopago';
 
-//Le pasamos el token de .env para que sepa que soy yo
 const client = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN || '' });
 
-//Lo que esperamos recibir de la Seller App
 interface CreatePaymentRequest {
   id_purchase_order: string;
   id_buyer: string;
   total_price: number;
 }
 
-//Endpoint para que la Seller App cree una nueva transaccion de pago cuando se genere una orden de compra.
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as CreatePaymentRequest; //Forzamos el tipado con la interface
+    const body = (await request.json()) as CreatePaymentRequest;
     const {id_purchase_order, id_buyer, total_price} = body;
     
-    //Nos fijamos que esten los datos obligatorios
     if (!id_purchase_order || !id_buyer || !total_price) {
       return NextResponse.json(
         {error: "Faltan campos obligatorios en el body"},
-        {status: 400} //Error de parte del cliente
+        {status: 400}
       )
     }
 
-    //Le avisamos a MP antes de hacer nada
+    const id_operacion_pago = crypto.randomUUID();
     const preference = new Preference(client);
     const mpResponse = await preference.create({
       body: {
@@ -41,39 +36,36 @@ export async function POST(request: NextRequest) {
             currency_id: 'ARS',
           }
         ],
-
+        external_reference: id_operacion_pago,
         back_urls: {
-          success: "https://proyecto-c-payments-mateandoando.vercel.app/success",
-          failure: "https://proyecto-c-payments-mateandoando.vercel.app/failure",
-          pending: "https://proyecto-c-payments-mateandoando.vercel.app/pending"
+          success: `https://proyecto-c-payments-mateandoando.vercel.app/success?id_operacion=${id_operacion_pago}`,
+          failure: `https://proyecto-c-payments-mateandoando.vercel.app/failure?id_operacion=${id_operacion_pago}`,
+          pending: `https://proyecto-c-payments-mateandoando.vercel.app/pending?id_operacion=${id_operacion_pago}`
         },
         auto_return: "approved"
       }
     });
 
-    //Guardamos en la base de datos
     const nuevoPago = await prisma.payment_order.create({
       data: {
         idPurchaseOrder: id_purchase_order,
         idBuyer: id_buyer,
         totalPrice: total_price,
         status: "PENDIENTE",
-        idSeller: crypto.randomUUID(), //Crypto es usado para generar codigos UUID validos y aleatorios
+        idSeller: crypto.randomUUID(),
         idSellerApp: crypto.randomUUID(),
         idBuyerApp: crypto.randomUUID(),
+        url: mpResponse.init_point,
       }
     });
 
-    //Devolvemos el ID de la nueva transaccion recien creada
     return NextResponse.json(
       {id_payment_operation: nuevoPago.idPaymentOperation, 
-        //Mas adelante se va a cambiar sandbox_init_point por init_point que es el link real de MP.
       checkout_url: mpResponse.init_point},
       {status:201}
     )
 
   }catch(error: any) {
-    // Le pedimos a la consola que escupa el JSON exacto del rechazo de MP
     console.error("Error completo de MP:", error.cause || error);
     
     return NextResponse.json(

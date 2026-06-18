@@ -20,17 +20,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    // 2. ENVOLVEMOS TU HTML CON EL PROVEEDOR DE CLERK
     <ClerkProvider>
-      <html
-        lang="es"
-        className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      >
-        <body className="min-h-full flex flex-col">{children}</body>
+      <html lang="es">
+        <body>{children}</body>
       </html>
     </ClerkProvider>
   );

@@ -49,7 +49,8 @@ export async function GET(
       id_purchase_order: ordenDePago.idPurchaseOrder,
       total_price: Number(ordenDePago.totalPrice), // Prisma devuelve Decimal, lo pasamos a número
       status: ordenDePago.status,
-      created_at: ordenDePago.createdAt
+      created_at: ordenDePago.createdAt,
+      url: ordenDePago.url //Agregamos el campo url para que el frontend pueda redirigir al usuario a MP sin tener que armar el link manualmente
     }, { status: 200 });
 
 } catch (error) {
