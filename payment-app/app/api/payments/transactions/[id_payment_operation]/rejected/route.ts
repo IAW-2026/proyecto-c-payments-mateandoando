@@ -33,7 +33,7 @@ export async function PATCH(
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-KEY': process.env.SELLER_APP_API_KEY || '' // ✅ Header unificado
+                    'X-API-KEY': process.env.PAYMENTS_API_KEY || '' // ✅ Header unificado
                 },
                 body: JSON.stringify({
                     status: 'RECHAZADO', // ✅ Contrato pide exactamente "RECHAZADO"
@@ -52,7 +52,7 @@ export async function PATCH(
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
-                    'X-API-KEY': process.env.BUYER_APP_API_KEY || '' // ✅ Header unificado
+                    'X-API-KEY': process.env.BUYER_APP_SECRET_KEY || '' // ✅ Header unificado
                 },
                 body: JSON.stringify({
                     id_purchase_order: pagoCancelado.idPurchaseOrder, // ✅ Agregado el ID de la orden

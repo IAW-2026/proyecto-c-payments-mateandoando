@@ -33,7 +33,7 @@ export async function PATCH(
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
-                    'X-API-KEY': process.env.SELLER_APP_API_KEY || ''
+                    'X-API-KEY': process.env.PAYMENTS_API_KEY || ''
                 },
                 body: JSON.stringify({
                     status: "APROBADO", // ✅ Corregido según contrato
@@ -52,7 +52,7 @@ export async function PATCH(
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
-                    'X-API-KEY': process.env.BUYER_APP_API_KEY || ''
+                    'X-API-KEY': process.env.BUYER_APP_SECRET_KEY || ''
                 },
                 body: JSON.stringify({
                     id_purchase_order: pagoAprobado.idPurchaseOrder, // ✅ Agregado según contrato
