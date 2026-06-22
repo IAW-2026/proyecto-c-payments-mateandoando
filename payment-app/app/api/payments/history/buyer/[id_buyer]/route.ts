@@ -6,6 +6,19 @@ export async function GET(
   { params }: { params: Promise<{ id_buyer: string }> }
 ) {
   try {
+    // 1. BARRERA DE SEGURIDAD: Verificamos que quien llama sea la Buyer App
+    // Next.js convierte los headers a minúsculas automáticamente
+    const apiKeyRecibida = request.headers.get('x-api-key') || request.headers.get('x_api_key');
+    const claveSecreta = process.env.BUYER_APP_SECRET_KEY || '';
+
+    if (!apiKeyRecibida || apiKeyRecibida !== claveSecreta) {
+      return NextResponse.json(
+        { error: "Acceso denegado. Credenciales de aplicación inválidas." },
+        { status: 401 } // 401: Unauthorized
+      );
+    }
+
+    // 2. Si pasó la seguridad, extraemos el parámetro de la URL
     const {id_buyer} = await params;
 
     // Buscamos todas las órdenes donde este usuario sea el COMPRADOR
