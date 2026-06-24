@@ -7,6 +7,17 @@ export async function PATCH(
   context: { params: Promise<{ id_payment_operation: string }> }
 ) {
   try {
+    // --- NUEVA BARRERA DE SEGURIDAD ---
+    const apiKeyRecibida = request.headers.get('x-api-key') || request.headers.get('x_api_key');
+    const BUYER_APP_SECRET = process.env.BUYER_APP_SECRET_KEY || ''; 
+
+    if (!apiKeyRecibida || apiKeyRecibida !== BUYER_APP_SECRET) {
+        return NextResponse.json(
+            { error: "Acceso denegado. Credenciales inválidas." },
+            { status: 401 } 
+        );
+    }
+
     //Extraemos el ID de la URL 
     const resolvedParams = await context.params;
     const paymentId = resolvedParams.id_payment_operation;
@@ -14,22 +25,21 @@ export async function PATCH(
     if (!paymentId) {
       return NextResponse.json(
         {error: "Falta el ID de la operación de pago."},
-        {status: 400} //Error de parte del cliente
+        {status: 400} 
       ); 
     }
 
     //Leemos el Body que nos manda la Buyer App
     const body = await request.json();
 
-    // ✅ ACÁ ESTÁ EL CAMBIO APLICADO
     if (body.status !== "CANCELADO") {
       return NextResponse.json(
         {error: "El estado enviado no es valido para esta operacion."},
-        {status: 400} // <-- ¡Agregado para devolver el código de error correcto!
+        {status: 400} 
       )
     }
 
-    //Buscamos la orden primero para saber cuál es el idPurchaseOrder
+    //Buscamos la orden primero
     const ordenActual = await prisma.payment_order.findUnique({
       where: { idPaymentOperation: paymentId },
     });
@@ -37,7 +47,7 @@ export async function PATCH(
     if (!ordenActual) {
       return NextResponse.json(
         {error: "No se encontró la orden de pago con el ID proporcionado."},
-        {status: 404} //No encontrado
+        {status: 404} 
       );
     }
 
@@ -45,7 +55,6 @@ export async function PATCH(
     const SELLER_APP_URL = process.env.NEXT_PUBLIC_SELLER_URL || 'http://localhost:3001';
 
     try {
-      // ✅ URL y Método corregidos según el contrato oficial
       const sellerResponse = await fetch(`${SELLER_APP_URL}/api/purchase-orders/${ordenActual.idPurchaseOrder}/refund`, {
         method: 'PATCH', 
         headers: {
@@ -56,19 +65,16 @@ export async function PATCH(
 
       const sellerData = await sellerResponse.json();
 
-      // Escenario B: Si la Seller App responde con un error significa que no se puede reembolsar.
+      //Escenario B: Rechazo
       if (!sellerResponse.ok || sellerData.error) {
         return NextResponse.json(
           {
             error: sellerData.error || "Error al procesar el reembolso en la Seller App.",
-            codigo: sellerData.codigo || "ERROR_DESCONOCIDO" // ✅ Opcional: sumamos el código del contrato
+            codigo: sellerData.codigo || "ERROR_DESCONOCIDO" 
           },
-          {status: 400} // Cambiado a 400 porque es un rechazo de regla de negocio, no un error de gateway
+          {status: 400} 
         );
       }
-
-      // Escenario A: Si se llega acá significa que no hay problemas para reembolsar.
-      console.log("Éxito al validar el reembolso con la Seller App:", sellerData.message);
       
     } catch (error) {
       console.error("Error de comunicación con la Seller App.", error);
@@ -78,13 +84,12 @@ export async function PATCH(
       );
     }
 
-    //Como la Seller App no devolvio error, ahora actualizamos prisma.
+    //Actualizamos prisma.
     const pagoReembolsado = await prisma.payment_order.update({
       where: { idPaymentOperation: paymentId },
       data: { status: "REEMBOLSADO" },
     });
 
-    //Devolvemos la transaccion actualizada a la Buyer App
     return NextResponse.json({
       id_payment_operation: pagoReembolsado.idPaymentOperation,
       status: pagoReembolsado.status,
@@ -94,17 +99,16 @@ export async function PATCH(
   } catch (error: any) {
     console.error("Error al cancelar la transaccion.", error);
 
-    //Si Prisma no encuentra el ID, tira el codigo de error especifico P2025
     if (error.code === 'P2025') {
       return NextResponse.json(
         {error: "No se encontró la orden de pago con el ID proporcionado."},
-        {status: 404} //No encontrado
+        {status: 404} 
       );
     }
 
     return NextResponse.json(
       {error: "Error interno del servidor al cancelar la transacción."},
-      {status: 500} //Error de parte del Servidor
+      {status: 500} 
     );
   }
 }
