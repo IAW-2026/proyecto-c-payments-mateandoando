@@ -33,12 +33,12 @@ export async function PATCH(
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-API-KEY': process.env.PAYMENTS_API_KEY || '' // ✅ Header unificado
+                    'X-API-KEY': process.env.PAYMENTS_API_KEY || '' //Header unificado
                 },
                 body: JSON.stringify({
-                    status: 'RECHAZADO', // ✅ Contrato pide exactamente "RECHAZADO"
-                    id_payment_operation: null, // ✅ Contrato pide null en caso de rechazo
-                    payment_hash: null // ✅ Contrato pide null
+                    status: 'RECHAZADO', //Contrato pide exactamente "RECHAZADO"
+                    id_payment_operation: null, //Contrato pide null en caso de rechazo
+                    payment_hash: null //Contrato pide null
                 })
             });
             console.log("Se le avisó a la Seller App que el pago fue RECHAZADO.");
@@ -52,13 +52,13 @@ export async function PATCH(
                 method: "PATCH",
                 headers: {
                     "Content-Type": "application/json",
-                    'X-API-KEY': process.env.BUYER_APP_SECRET_KEY || '' // ✅ Header unificado
+                    'X-API-KEY': process.env.BUYER_APP_SECRET_KEY || '' //Header unificado
                 },
                 body: JSON.stringify({
-                    id_purchase_order: pagoCancelado.idPurchaseOrder, // ✅ Agregado el ID de la orden
+                    id_purchase_order: pagoCancelado.idPurchaseOrder, //Agregado el ID de la orden
                     id_payment_operation: pagoCancelado.idPaymentOperation,
-                    status: "RECHAZADO", // ✅ Unificado con el contrato
-                    payment_hash: null // ✅ Al ser rechazado, no hay hash
+                    status: "RECHAZADO", //Unificado con el contrato
+                    payment_hash: null //Al ser rechazado, no hay hash
                 }),
             });
             console.log("Se le avisó a la Buyer App que el pago fue RECHAZADO.");

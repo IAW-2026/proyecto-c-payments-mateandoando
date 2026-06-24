@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../../lib/prisma';
 
-// Endpoint para que use Mercado Pago cuando un pago fue aprobado y este mismo utilizara los endpoints provistos por Seller App y Buyer App
+//Endpoint para que use Mercado Pago cuando un pago fue aprobado y este mismo utilizara los endpoints provistos por Seller App y Buyer App
 export async function PATCH(
     request: NextRequest,
     context: { params: Promise<{ id_payment_operation: string }> }
@@ -17,17 +17,17 @@ export async function PATCH(
             ); 
         }
 
-        // Actualizamos el estado a "APROBADO"
+        //Actualizamos el estado a "APROBADO"
         const pagoAprobado = await prisma.payment_order.update({
             where: {idPaymentOperation: paymentId},
-            data: {status: "APROBADO"} // Se usa el valor del enum
+            data: {status: "APROBADO"} //Se usa el valor del enum
         });
 
-        // Usamos las variables de entorno correctas apuntando a los Vercel
+        //Usamos las variables de entorno correctas apuntando a los Vercel
         const SELLER_APP_URL = process.env.NEXT_PUBLIC_SELLER_URL || 'http://localhost:3001';
         const BUYER_APP_URL = process.env.NEXT_PUBLIC_BUYER_URL || 'http://localhost:3002';
 
-        // 1. Avisamos a la Seller App
+        //Avisamos a la Seller App
         try {
             await fetch(`${SELLER_APP_URL}/api/purchase-orders/${pagoAprobado.idPurchaseOrder}/payment`, {
                 method: "PATCH",
@@ -36,7 +36,7 @@ export async function PATCH(
                     'X-API-KEY': process.env.PAYMENTS_API_KEY || ''
                 },
                 body: JSON.stringify({
-                    status: "APROBADO", // ✅ Corregido según contrato
+                    status: "APROBADO", //Corregido según contrato
                     id_payment_operation: pagoAprobado.idPaymentOperation,
                     payment_hash: pagoAprobado.paymentHash || "hash_generado_proximamente"
                 }),
@@ -55,7 +55,7 @@ export async function PATCH(
                     'X-API-KEY': process.env.BUYER_APP_SECRET_KEY || ''
                 },
                 body: JSON.stringify({
-                    id_purchase_order: pagoAprobado.idPurchaseOrder, // ✅ Agregado según contrato
+                    id_purchase_order: pagoAprobado.idPurchaseOrder, //Agregado según contrato
                     status: "APROBADO",
                     id_payment_operation: pagoAprobado.idPaymentOperation,
                     payment_hash: pagoAprobado.paymentHash || "hash_generado_proximamente"

@@ -6,8 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ id_buyer: string }> }
 ) {
   try {
-    // 1. BARRERA DE SEGURIDAD: Verificamos que quien llama sea la Buyer App
-    // Next.js convierte los headers a minúsculas automáticamente
+    //Verificamos que quien llama sea la Buyer App
     const apiKeyRecibida = request.headers.get('x-api-key') || request.headers.get('x_api_key');
     const claveSecreta = process.env.BUYER_APP_SECRET_KEY || '';
 
@@ -18,16 +17,16 @@ export async function GET(
       );
     }
 
-    // 2. Si pasó la seguridad, extraemos el parámetro de la URL
+    //Extraemos el parámetro de la URL
     const {id_buyer} = await params;
 
-    // Buscamos todas las órdenes donde este usuario sea el COMPRADOR
+    //Buscamos todas las órdenes donde este usuario sea el comprador
     const compras = await prisma.payment_order.findMany({
       where: {
         idBuyer: id_buyer,
       },
       orderBy: {
-        createdAt: 'desc' // Ordenamos para que las más nuevas salgan arriba
+        createdAt: 'desc' //Ordenamos para que las más nuevas salgan arriba
       }
     });
 
