@@ -1,34 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from "../../../../lib/prisma";
-import { auth } from '@clerk/nextjs/server';
+import { prisma } from "../../../../lib/prisma"; // Verificá que los '../' sean correctos
 
-//Endpoint para que la Seller App consulte el estado de una transaccion.
+// Endpoint para que la Seller App u otras apps consulten el estado de una transaccion.
 export async function GET(
   request: NextRequest,
-  //Este nombre tiene que coincidir con el  parametro dinamico de la URL entre corchetes
-  //Promise se utiliza como un await, para que id_payment_operation se resuelva antes de ser usado, ya que viene de la URL y es asincrónico
   { params }: { params: Promise<{ id_payment_operation: string }> }
 ) {
   try {
+    // 1. SEGURIDAD SERVER-TO-SERVER (Reemplaza a Clerk)
+    const apiKeyRecibida = request.headers.get('x-api-key') || request.headers.get('x_api_key');
+    const PAYMENTS_SECRET = process.env.PAYMENTS_API_KEY || ''; 
 
-    //Le preguntamos a Clerk quein es el usuario que esta haciendo la peticion.
-    const {userId} = await auth();
-
-    //Si no hay usuario logueado, le cortamos el paso con error 401.
-    if (!userId) {
+    if (!apiKeyRecibida || apiKeyRecibida !== PAYMENTS_SECRET) {
       return NextResponse.json(
-        {error: "No autorizado. Debes iniciar sesión para consultar el estado de la transacción."},
-        {status: 401} //No autorizado
+        {error: "No autorizado. Credenciales de aplicación inválidas."},
+        {status: 401} 
       ); 
     }
 
-    const resolvedParams = await params; // Resolvemos la promesa para obtener los parámetros
+    // 2. BUSCAMOS LA ORDEN
+    const resolvedParams = await params;
     const paymentId = resolvedParams.id_payment_operation;
 
     if (!paymentId) {
       return NextResponse.json(
         {error: "Falta el ID de la operación de pago en la URL."},
-        {status: 400} //Error de parte del cliente
+        {status: 400} 
       ); 
     }
 
@@ -39,25 +36,25 @@ export async function GET(
     if (!ordenDePago) {
       return NextResponse.json(
         {error: "No se encontró la orden de pago con el ID proporcionado."},
-        {status: 404} //No encontrado
+        {status: 404} 
       );
     }
 
-    //Devolvemos los campos que se piden en el contrato.
+    // 3. DEVOLVEMOS EL JSON
     return NextResponse.json({
       id_payment_operation: ordenDePago.idPaymentOperation,
       id_purchase_order: ordenDePago.idPurchaseOrder,
-      total_price: Number(ordenDePago.totalPrice), // Prisma devuelve Decimal, lo pasamos a número
+      total_price: Number(ordenDePago.totalPrice), 
       status: ordenDePago.status,
       created_at: ordenDePago.createdAt,
-      url: ordenDePago.url //Agregamos el campo url para que el frontend pueda redirigir al usuario a MP sin tener que armar el link manualmente
+      url: ordenDePago.url // ¡Mantenemos tu excelente agregado!
     }, { status: 200 });
 
-} catch (error) {
+  } catch (error) {
     console.error("Error al buscar la transaccion.", error);
     return NextResponse.json(
       {error: "Error interno del servidor al consultar la transacción."},
-      {status: 500} //Error de parte del Servidor
+      {status: 500} 
     );
   }
 }
