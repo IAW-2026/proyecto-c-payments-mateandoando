@@ -59,7 +59,7 @@ export async function PATCH(
         method: 'PATCH', 
         headers: {
           "Content-Type": "application/json",
-          'X-API-KEY': process.env.SELLER_APP_SECRET_KEY || ''
+          'X-API-KEY': process.env.PAYMENTS_API_KEY || ''
         },
       });
 
