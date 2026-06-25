@@ -15,7 +15,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    //CÁLCULOS FINANCIEROS (Solo de transacciones APROBADAS)
+    // --- DEFINIMOS LA FECHA DE CORTE ---
+    // Ignoramos todo lo anterior al 21 de Junio de 2026 a las 00:00 UTC
+    const FECHA_CORTE = new Date('2026-06-21T00:00:00.000Z');
+
+    //CÁLCULOS FINANCIEROS (Solo de transacciones APROBADAS y desde la fecha de corte)
     //Usamos aggregate para sumar y promediar directamente en la base de datos
     const metricasFinancieras = await prisma.payment_order.aggregate({
       _sum: {
@@ -26,19 +30,27 @@ export async function GET(request: NextRequest) {
       },
       where: {
         status: "APROBADO", //Solo contamos la plata que realmente entró
+        createdAt: { gte: FECHA_CORTE } // <-- Filtro de fecha aplicado
       },
     });
 
-    //VOLUMEN TOTAL
-    const totalTransacciones = await prisma.payment_order.count();
+    //VOLUMEN TOTAL (Desde la fecha de corte)
+    const totalTransacciones = await prisma.payment_order.count({
+      where: {
+        createdAt: { gte: FECHA_CORTE } // <-- Filtro de fecha aplicado
+      }
+    });
 
-    //DISTRIBUCIÓN DE ESTADOS
+    //DISTRIBUCIÓN DE ESTADOS (Desde la fecha de corte)
     //groupBy agrupa las órdenes por estado y nos cuenta cuántas hay de cada uno
     const distribucionEstados = await prisma.payment_order.groupBy({
       by: ['status'],
       _count: {
         status: true,
       },
+      where: {
+        createdAt: { gte: FECHA_CORTE } // <-- Filtro de fecha aplicado
+      }
     });
 
     //FORMATEO DE LA RESPUESTA
