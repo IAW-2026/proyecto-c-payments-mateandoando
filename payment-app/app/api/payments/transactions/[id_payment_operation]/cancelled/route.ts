@@ -32,7 +32,7 @@ export async function PATCH(
     //Leemos el Body que nos manda la Buyer App
     const body = await request.json();
 
-    if (body.status !== "CANCELADO") {
+    if (body.status !== "CANCELADO" && body.status !== "CANCELADA") {
       return NextResponse.json(
         {error: "El estado enviado no es valido para esta operacion."},
         {status: 400} 
@@ -61,6 +61,7 @@ export async function PATCH(
           "Content-Type": "application/json",
           'X-API-KEY': process.env.PAYMENTS_API_KEY || ''
         },
+        body: JSON.stringify({ status: "CANCELADA" })
       });
 
       const sellerData = await sellerResponse.json();
