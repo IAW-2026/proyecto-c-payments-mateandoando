@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
     //BARRERA DE SEGURIDAD
     const apiKeyRecibida = request.headers.get('x-api-key') || request.headers.get('x_api_key');
     //Configurá esta variable en tu .env de Vercel para que Analytics se pueda conectar
-    const ANALYTICS_SECRET = process.env.ANALYTICS_API_KEY || ''; 
+    const ANALYTICS_SECRET = process.env.ANALYTICS_PAYMENTS_API_KEY || ''; 
 
     if (!apiKeyRecibida || apiKeyRecibida !== ANALYTICS_SECRET) {
       return NextResponse.json(
