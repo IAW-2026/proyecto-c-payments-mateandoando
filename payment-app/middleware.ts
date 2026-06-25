@@ -12,7 +12,9 @@ const isPublicRoute = createRouteMatcher([
   //Comunicación interna con la Seller App y Buyer App, acá usan el X-API-Key
   '/api/payments/create',
   '/api/payments/transactions/(.*)/cancelled',
-  '/api/payments/history/buyer/(.*)'
+  '/api/payments/history/buyer/(.*)',
+  '/api/payments/analytics',
+  '/api/payments/transactions/(.*)'
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
