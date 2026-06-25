@@ -5,6 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     //BARRERA DE SEGURIDAD
     const apiKeyRecibida = request.headers.get('x-api-key') || request.headers.get('x_api_key');
+    //Configurá esta variable en tu .env de Vercel para que Analytics se pueda conectar
     const ANALYTICS_SECRET = process.env.ANALYTICS_PAYMENTS_API_KEY || ''; 
 
     if (!apiKeyRecibida || apiKeyRecibida !== ANALYTICS_SECRET) {
@@ -14,56 +15,38 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // --- DEFINIMOS LA FECHA DE CORTE ---
-    const FECHA_CORTE = new Date('2026-06-21T00:00:00.000Z');
-
-    //CÁLCULOS FINANCIEROS (Solo de transacciones APROBADAS y desde la fecha de corte)
+    //CÁLCULOS FINANCIEROS (Solo de transacciones APROBADAS)
+    //Usamos aggregate para sumar y promediar directamente en la base de datos
     const metricasFinancieras = await prisma.payment_order.aggregate({
-      _sum: { totalPrice: true },
-      _avg: { totalPrice: true },
+      _sum: {
+        totalPrice: true,
+      },
+      _avg: {
+        totalPrice: true,
+      },
       where: {
-        status: "APROBADO",
-        createdAt: { gte: FECHA_CORTE }
+        status: "APROBADO", //Solo contamos la plata que realmente entró
       },
     });
 
-    //VOLUMEN TOTAL (Desde la fecha de corte)
-    const totalTransacciones = await prisma.payment_order.count({
-      where: { createdAt: { gte: FECHA_CORTE } }
-    });
+    //VOLUMEN TOTAL
+    const totalTransacciones = await prisma.payment_order.count();
 
-    //DISTRIBUCIÓN DE ESTADOS (Desde la fecha de corte)
+    //DISTRIBUCIÓN DE ESTADOS
+    //groupBy agrupa las órdenes por estado y nos cuenta cuántas hay de cada uno
     const distribucionEstados = await prisma.payment_order.groupBy({
       by: ['status'],
-      _count: { status: true },
-      where: { createdAt: { gte: FECHA_CORTE } }
-    });
-
-    // --- NUEVO: EXTRAER EL HISTORIAL TEMPORAL DE VENTAS ---
-    const ventasTimeline = await prisma.payment_order.findMany({
-      where: {
-        status: "APROBADO",
-        createdAt: { gte: FECHA_CORTE }
+      _count: {
+        status: true,
       },
-      select: {
-        createdAt: true,
-        totalPrice: true
-      },
-      orderBy: {
-        createdAt: 'asc'
-      }
     });
-
-    // Formateamos el historial para que viaje limpio en el JSON
-    const timelineFormateado = ventasTimeline.map(item => ({
-      date: item.createdAt,
-      price: Number(item.totalPrice)
-    }));
 
     //FORMATEO DE LA RESPUESTA
+    //Prisma devuelve los decimales como objetos especiales, así que los pasamos a Number
     const revenueTotal = metricasFinancieras._sum.totalPrice ? Number(metricasFinancieras._sum.totalPrice) : 0;
     const ticketPromedio = metricasFinancieras._avg.totalPrice ? Number(metricasFinancieras._avg.totalPrice) : 0;
 
+    //Acomodamos el arreglo de estados para que quede prolijo según el JSON que prometimos
     const byStatus = distribucionEstados.map((item) => ({
       status: item.status,
       count: item._count.status,
@@ -77,7 +60,6 @@ export async function GET(request: NextRequest) {
           total_processed_transactions: totalTransacciones,
         },
         transactions_by_status: byStatus,
-        sales_timeline: timelineFormateado, // <-- Enviamos la serie de tiempo al Dashboard
       },
       { status: 200 }
     );
