@@ -5,7 +5,6 @@ export async function GET(request: NextRequest) {
   try {
     //BARRERA DE SEGURIDAD
     const apiKeyRecibida = request.headers.get('x-api-key') || request.headers.get('x_api_key');
-    //Configurá esta variable en tu .env de Vercel para que Analytics se pueda conectar
     const ANALYTICS_SECRET = process.env.ANALYTICS_PAYMENTS_API_KEY || ''; 
 
     if (!apiKeyRecibida || apiKeyRecibida !== ANALYTICS_SECRET) {
@@ -15,38 +14,44 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    //CÁLCULOS FINANCIEROS (Solo de transacciones APROBADAS)
-    //Usamos aggregate para sumar y promediar directamente en la base de datos
+    //CÁLCULOS FINANCIEROS (Solo de transacciones APROBADAS - Histórico completo)
     const metricasFinancieras = await prisma.payment_order.aggregate({
-      _sum: {
-        totalPrice: true,
-      },
-      _avg: {
-        totalPrice: true,
-      },
-      where: {
-        status: "APROBADO", //Solo contamos la plata que realmente entró
-      },
+      _sum: { totalPrice: true },
+      _avg: { totalPrice: true },
+      where: { status: "APROBADO" },
     });
 
-    //VOLUMEN TOTAL
+    //VOLUMEN TOTAL (Histórico completo)
     const totalTransacciones = await prisma.payment_order.count();
 
-    //DISTRIBUCIÓN DE ESTADOS
-    //groupBy agrupa las órdenes por estado y nos cuenta cuántas hay de cada uno
+    //DISTRIBUCIÓN DE ESTADOS (Histórico completo)
     const distribucionEstados = await prisma.payment_order.groupBy({
       by: ['status'],
-      _count: {
-        status: true,
-      },
+      _count: { status: true },
     });
 
+    // --- EXTRAER EL HISTORIAL TEMPORAL DE VENTAS (Requerido para el gráfico) ---
+    const ventasTimeline = await prisma.payment_order.findMany({
+      where: { status: "APROBADO" },
+      select: {
+        createdAt: true,
+        totalPrice: true
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    });
+
+    // Formateamos el historial para que viaje limpio en el JSON
+    const timelineFormateado = ventasTimeline.map(item => ({
+      date: item.createdAt,
+      price: Number(item.totalPrice)
+    }));
+
     //FORMATEO DE LA RESPUESTA
-    //Prisma devuelve los decimales como objetos especiales, así que los pasamos a Number
     const revenueTotal = metricasFinancieras._sum.totalPrice ? Number(metricasFinancieras._sum.totalPrice) : 0;
     const ticketPromedio = metricasFinancieras._avg.totalPrice ? Number(metricasFinancieras._avg.totalPrice) : 0;
 
-    //Acomodamos el arreglo de estados para que quede prolijo según el JSON que prometimos
     const byStatus = distribucionEstados.map((item) => ({
       status: item.status,
       count: item._count.status,
@@ -60,6 +65,7 @@ export async function GET(request: NextRequest) {
           total_processed_transactions: totalTransacciones,
         },
         transactions_by_status: byStatus,
+        sales_timeline: timelineFormateado, // <-- Enviamos la serie de tiempo al Dashboard
       },
       { status: 200 }
     );
