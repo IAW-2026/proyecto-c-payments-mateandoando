@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient, PaymentStatus } from '@prisma/client';
-import { prisma } from '../../../lib/prisma';
+import { PaymentStatus } from '@prisma/client';
+// Importamos la conexión de Prisma que ya tenés instanciada, sin crear una nueva
+import { prisma } from '../../../lib/prisma'; 
 
-// Función REAL que consulta a la API de Mercado Pago
-async function consultarMercadoPago(idPagoMercadoPago: string): Promise<PaymentStatus | null> {
+// Función que busca el pago en Mercado Pago usando TU ID local (external_reference)
+async function buscarPorIdLocal(idPaymentOperation: string): Promise<{ status: PaymentStatus | null; mpId: string | null }> {
   try {
-    // Reemplazarías esto por tu variable de entorno real: process.env.MP_ACCESS_TOKEN
     const ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || '';
 
-    // Hacemos el request GET al endpoint de Mercado Pago
-    const response = await fetch(`https://api.mercadopago.com/v1/payments/${idPagoMercadoPago}`, {
+    // Usamos el endpoint de búsqueda (search) filtrando por external_reference
+    const response = await fetch(`https://api.mercadopago.com/v1/payments/search?external_reference=${idPaymentOperation}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${ACCESS_TOKEN}`,
@@ -18,92 +18,99 @@ async function consultarMercadoPago(idPagoMercadoPago: string): Promise<PaymentS
     });
 
     if (!response.ok) {
-      console.error(`Error consultando MP para el pago ${idPagoMercadoPago}: ${response.statusText}`);
-      return null;
+      console.error(`Error en API de búsqueda para ${idPaymentOperation}: ${response.statusText}`);
+      return { status: null, mpId: null };
     }
 
     const data = await response.json();
-    
-    // Mercado Pago devuelve el estado en inglés. Lo mapeamos a tus enums.
-    if (data.status === 'approved') return PaymentStatus.APROBADO;
-    if (data.status === 'cancelled' || data.status === 'rejected') return PaymentStatus.CANCELADO;
-    if (data.status === 'refunded') return PaymentStatus.REEMBOLSADO;
-    
-    // Si sigue 'pending' o 'in_process', devolvemos null para no hacer nada
-    return null; 
-    
+
+    // Si "results" está vacío, significa que el cliente jamás interactuó con la pasarela de pago
+    if (!data.results || data.results.length === 0) {
+      return { status: null, mpId: null };
+    }
+
+    // Si hay resultados, agarramos el pago más reciente
+    const pagoMercadoPago = data.results[0];
+    const mpStatus = pagoMercadoPago.status;
+    const mpId = pagoMercadoPago.id.toString(); // El ID numérico real de MP
+
+    if (mpStatus === 'approved') return { status: PaymentStatus.APROBADO, mpId };
+    if (mpStatus === 'cancelled' || mpStatus === 'rejected') return { status: PaymentStatus.CANCELADO, mpId };
+    if (mpStatus === 'refunded') return { status: PaymentStatus.REEMBOLSADO, mpId };
+
+    return { status: null, mpId: null }; 
+
   } catch (error) {
-    console.error('Fallo en la red al contactar a Mercado Pago:', error);
-    return null;
+    console.error('Error de red al buscar en Mercado Pago:', error);
+    return { status: null, mpId: null };
   }
 }
 
 export async function POST() {
-  console.log('🔍 [SYNC] Iniciando sincronización de pagos vencidos...');
+  console.log('🔍 [AUDITORÍA V2] Iniciando barrido por ID Local (external_reference)...');
 
   try {
-    // 1. Calculamos exactamente qué hora era hace 24 horas
     const hace24Horas = new Date();
     hace24Horas.setHours(hace24Horas.getHours() - 24);
 
-    // 2. Buscamos en Prisma solo los PENDIENTES que tengan MÁS de 1 día de antigüedad
+    // 1. Buscamos en Prisma todos los PENDIENTES de más de 24 horas
     const pagosPendientes = await prisma.payment_order.findMany({
       where: { 
         status: PaymentStatus.PENDIENTE,
-        createdAt: {
-          lt: hace24Horas // "less than" hace 24 horas
-        }
+        createdAt: { lt: hace24Horas }
       }
     });
 
     if (pagosPendientes.length === 0) {
-      return NextResponse.json({ message: 'No hay pagos con más de 24hs de antigüedad para sincronizar', actualizados: 0 });
+      return NextResponse.json({ message: 'No hay pagos con más de 24hs para sincronizar', actualizados: 0 });
     }
 
+    console.log(`📊 Se encontraron ${pagosPendientes.length} órdenes viejas para auditar.`);
     let actualizados = 0;
 
     for (const pago of pagosPendientes) {
-      // OJO ACÁ: A Mercado Pago tenés que mandarle el ID que ellos te generaron cuando se creó la preferencia, 
-      // no tu UUID de base de datos. Asumimos que lo guardaste en el paymentHash.
-      const idDeMP = pago.paymentHash; 
-      
-      if (!idDeMP) continue; // Si por algún motivo no tenemos el ID de MP, lo saltamos
+      console.log(`📋 Auditando ID de Operación Local: ${pago.idPaymentOperation}`);
 
-      const estadoReal = await consultarMercadoPago(idDeMP);
+      // 2. Le preguntamos a MP usando tu ID local en lugar del hash
+      const { status: estadoReal, mpId } = await buscarPorIdLocal(pago.idPaymentOperation);
 
-      if (estadoReal && estadoReal !== PaymentStatus.PENDIENTE) {
-        // 3. Si Mercado Pago nos confirma un estado final, lo grabamos en la base
+      if (estadoReal) {
+        // Caso A: Lo encontró en Mercado Pago. 
+        // Actualizamos estado y GUARDAMOS el paymentHash que antes era null.
         await prisma.payment_order.update({
           where: { idPaymentOperation: pago.idPaymentOperation },
-          data: { status: estadoReal, updatedAt: new Date() }
+          data: { 
+            status: estadoReal, 
+            paymentHash: mpId, 
+            updatedAt: new Date() 
+          }
         });
         actualizados++;
-        console.log(`🔄 [CRON] Pago ${pago.idPaymentOperation.substring(0,8)} actualizado a ${estadoReal} vía Mercado Pago`);
-      } else if (!estadoReal) {
-        // 4. LÓGICA DE CANCELACIÓN: 
-        // Si Mercado Pago sigue diciendo que está pendiente después de 24hs, 
-        // tu sistema de e-commerce asume que el cliente abandonó y lo cancela localmente
-        // para liberar el stock de la Seller App.
+        console.log(`✅ Sincronizado automáticamente a ${estadoReal} (Hash MP guardado: ${mpId})`);
+      } else {
+        // Caso B: Si dio null, no hay registro en MP tras 24hs (carrito abandonado).
+        // Lo cancelamos para limpiar la base de datos.
         await prisma.payment_order.update({
           where: { idPaymentOperation: pago.idPaymentOperation },
-          data: { status: PaymentStatus.CANCELADO, updatedAt: new Date() }
+          data: { 
+            status: PaymentStatus.CANCELADO, 
+            updatedAt: new Date() 
+          }
         });
         actualizados++;
-        console.log(`❌ [CRON] Pago ${pago.idPaymentOperation.substring(0,8)} expiró por tiempo y fue CANCELADO localmente.`);
+        console.log(`❌ Sin movimientos en MP. Orden expirada pasada a CANCELADO.`);
       }
     }
 
     return NextResponse.json({ 
-      message: 'Sincronización con Mercado Pago completada', 
+      message: 'Auditoría por ID local completada', 
       revisados: pagosPendientes.length,
       actualizados: actualizados 
     });
 
   } catch (error) {
-    console.error('❌ Error general en sincronización:', error);
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+    console.error('❌ Error crítico en la auditoría:', error);
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
   }
 }
 
