@@ -3,11 +3,20 @@ import { redirect } from "next/navigation";
 import { prisma } from "../lib/prisma"; // Ajustá la ruta según tu proyecto
 
 export default async function DashboardRedirect() {
-  // Usamos currentUser() para poder leer el texto del email
+  // Usamos currentUser() para poder leer el texto del email y los metadatos
   const user = await currentUser();
 
   if (!user) {
     redirect("/login");
+  }
+
+  // ==========================================
+  // RUTA DE SEGURIDAD: ES UN ADMINISTRADOR
+  // ==========================================
+  // Revisamos si Clerk tiene asignado el rol de admin en la metadata pública
+  const esAdmin = user.publicMetadata?.role === "admin";
+  if (esAdmin) {
+    redirect("/admin");
   }
 
   // Agarramos el mail principal con el que inició sesión
