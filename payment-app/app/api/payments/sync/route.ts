@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient, PaymentStatus } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../../../lib/prisma';
 
 // Función REAL que consulta a la API de Mercado Pago
 async function consultarMercadoPago(idPagoMercadoPago: string): Promise<PaymentStatus | null> {
